@@ -4,6 +4,7 @@ import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, Depends, Body, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
+from loguru import logger
 
 from models.api import (
     DeleteRequest,
@@ -15,6 +16,7 @@ from models.api import (
 )
 from datastore.factory import get_datastore
 from services.file import get_document_from_file
+from services.utils import metadata_str_to_dict
 
 from models.models import DocumentMetadata, Source
 
@@ -52,12 +54,14 @@ async def upsert_file(
     metadata: Optional[str] = Form(None),
 ):
     try:
+        metadata_dict = metadata_str_to_dict(metadata)
         metadata_obj = (
-            DocumentMetadata.parse_raw(metadata)
+            DocumentMetadata.parse_obj(metadata_dict)
             if metadata
             else DocumentMetadata(source=Source.file)
         )
-    except:
+    except Exception as e:
+        logger.error(e)
         metadata_obj = DocumentMetadata(source=Source.file)
 
     document = await get_document_from_file(file, metadata_obj)
@@ -66,7 +70,7 @@ async def upsert_file(
         ids = await datastore.upsert([document])
         return UpsertResponse(ids=ids)
     except Exception as e:
-        print("Error:", e)
+        logger.error(e)
         raise HTTPException(status_code=500, detail=f"str({e})")
 
 
@@ -81,7 +85,7 @@ async def upsert(
         ids = await datastore.upsert(request.documents)
         return UpsertResponse(ids=ids)
     except Exception as e:
-        print("Error:", e)
+        logger.error(e)
         raise HTTPException(status_code=500, detail="Internal Service Error")
 
 
@@ -98,7 +102,7 @@ async def query_main(
         )
         return QueryResponse(results=results)
     except Exception as e:
-        print("Error:", e)
+        logger.error(e)
         raise HTTPException(status_code=500, detail="Internal Service Error")
 
 
@@ -117,7 +121,7 @@ async def query(
         )
         return QueryResponse(results=results)
     except Exception as e:
-        print("Error:", e)
+        logger.error(e)
         raise HTTPException(status_code=500, detail="Internal Service Error")
 
 
@@ -141,7 +145,7 @@ async def delete(
         )
         return DeleteResponse(success=success)
     except Exception as e:
-        print("Error:", e)
+        logger.error(e)
         raise HTTPException(status_code=500, detail="Internal Service Error")
 
 
@@ -152,4 +156,4 @@ async def startup():
 
 
 def start():
-    uvicorn.run("server.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("server.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info")

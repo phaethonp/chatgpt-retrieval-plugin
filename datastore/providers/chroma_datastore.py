@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 import chromadb
+from loguru import logger
 
 from datastore.datastore import DataStore
 from models.models import (
@@ -46,7 +47,7 @@ class ChromaDataStore(DataStore):
         if client:
             self._client = client
         else:
-            if in_memory:
+            if in_memory == True:
                 settings = (
                     chromadb.config.Settings(
                         chroma_db_impl="duckdb+parquet",
@@ -144,6 +145,7 @@ class ChromaDataStore(DataStore):
         return output
 
     def _process_metadata_for_storage(self, metadata: DocumentChunkMetadata) -> Dict:
+        # logger.info(metadata)
         stored_metadata = {}
         if metadata.source:
             stored_metadata["source"] = metadata.source.value
@@ -159,6 +161,8 @@ class ChromaDataStore(DataStore):
             stored_metadata["author"] = metadata.author
         if metadata.document_id:
             stored_metadata["document_id"] = metadata.document_id
+        if metadata.title:
+            stored_metadata["title"] = metadata.title
 
         return stored_metadata
 
@@ -172,6 +176,7 @@ class ChromaDataStore(DataStore):
             else None,
             author=metadata.get("author", None),
             document_id=metadata.get("document_id", None),
+            title=metadata.get("title", None)
         )
 
     async def _query(self, queries: List[QueryWithEmbedding]) -> List[QueryResult]:
